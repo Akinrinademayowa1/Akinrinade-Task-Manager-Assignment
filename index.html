@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <title>Task Manager</title>
   <style>
     :root {
@@ -144,6 +145,9 @@
         width: 100%;
         margin-top: 5px;
       }
+      h1 {
+      color: white;
+    }
     }
     footer {
     background-color: var(--bg-color);
@@ -155,6 +159,35 @@
     font-size: 14px;
     color: var(--text-color);
   }
+  h1 {
+      color: #3498db;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      position: relative;
+      animation: slideIn 2s ease-out, glowText 1.5s infinite alternate;
+    }
+
+    /* Slide-in animation */
+    @keyframes slideIn {
+      0% {
+        transform: translateY(-50px);
+        opacity: 0;
+      }
+      100% {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    /* Glow text animation */
+    @keyframes glowText {
+      0% {
+        text-shadow: 0 0 10px #3498db, 0 0 20px #3498db, 0 0 30px #3498db;
+      }
+      100% {
+        text-shadow: 0 0 20px #3498db, 0 0 30px #3498db, 0 0 40px #3498db;
+      }
+    }
   </style>
 </head>
 <body>
@@ -168,18 +201,23 @@
     </div>
     <div class="input-group">
       <input type="text" id="taskInput" placeholder="Enter a new task...">
-      <input type="date" id="dueDate">
-      <input type="time" id="dueTime">
-      <select id="priority">
+      <input type="date" id="dueDate" value="" onfocus="this.value=''">
+      <input type="time" id="dueTime" value="" onfocus="this.value=''">
+
+      <select id="priority" aria-placeholder="Set Priority">
+        <option value="" disabled selected>Select Priority</option>
         <option value="low">Low Priority</option>
         <option value="medium">Medium Priority</option>
         <option value="high">High Priority</option>
       </select>
-      <select id="recurring">
+      
+      <select id="recurring" aria-placeholder="Set Frequency">
+        <option value="" disabled selected>Select Frequency</option>
         <option value="none">One-time</option>
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
       </select>
+      
       <button onclick="addTask()">Add</button>
       <button onclick="startVoiceInput()">🎤 Speak opt</button>
     </div>
@@ -212,6 +250,20 @@
     }
     document.getElementById('preloader').style.display = 'none';
     document.getElementById('app').style.display = 'block';
+    // For the date field
+    document.getElementById('dueDate').addEventListener('focus', function() {
+        if (this.value === "") {
+            this.setAttribute('placeholder', 'Select a due date');
+        }
+    });
+
+    // For the time field
+    document.getElementById('dueTime').addEventListener('focus', function() {
+        if (this.value === "") {
+            this.setAttribute('placeholder', 'Select a due time');
+        }
+    });
+
     renderTasks();
   });
   const year = new Date().getFullYear();
@@ -246,34 +298,51 @@
   function saveTasks() {
     localStorage.setItem('tasks', JSON.stringify(tasks));
   }
+  function setFilter(newFilter) {
+  filter = newFilter; // Update the global filter state
+
+  // Update the active class on the buttons
+  const filterButtons = document.querySelectorAll('.filters button');
+  filterButtons.forEach(button => {
+    if (button.innerText.toLowerCase() === newFilter) {
+      button.classList.add('active');
+    } else {
+      button.classList.remove('active');
+    }
+  });
+
+  renderTasks(); // Re-render the tasks based on the new filter
+}
 
   function renderTasks() {
-    const list = document.getElementById('taskList');
-    list.innerHTML = '';
-    const filtered = tasks.filter(task => {
-      if (filter === 'completed') return task.completed;
-      if (filter === 'pending') return !task.completed;
-      return true;
-    });
+  console.log('Rendering tasks with filter:', filter); // Add this for debugging
+  const list = document.getElementById('taskList');
+  list.innerHTML = '';
+  const filtered = tasks.filter(task => {
+    if (filter === 'completed') return task.completed;
+    if (filter === 'pending') return !task.completed;
+    return true;
+  });
 
-    filtered.forEach((task, index) => {
-      const li = document.createElement('li');
-      li.className = task.completed ? 'completed' : '';
-      li.innerHTML = `
-        <span class="task-text" onclick="toggleTask(${index})">${task.text}</span>
-        <div class="meta">
-          <span>Due: ${task.due || 'None'} ${task.dueTime || ''}</span>
-          <span>Priority: ${task.priority}</span>
-          <span>${task.recurring !== 'none' ? 'Repeats: ' + task.recurring : ''}</span>
-        </div>
-        <div style="display:flex; gap:10px; justify-content:end;">
-          <button onclick="editTask(${index})">✏️</button>
-          <button onclick="deleteTask(${index})">&times;</button>
-        </div>
-      `;
-      list.appendChild(li);
-    });
-  }
+  filtered.forEach((task, index) => {
+    const li = document.createElement('li');
+    li.className = task.completed ? 'completed' : '';
+    li.innerHTML = `
+      <span class="task-text" onclick="toggleTask(${index})">${task.text}</span>
+      <div class="meta">
+        <span>Due: ${task.due || 'None'} ${task.dueTime || ''}</span>
+        <span>Priority: ${task.priority}</span>
+        <span>${task.recurring !== 'none' ? 'Repeats: ' + task.recurring : ''}</span>
+      </div>
+      <div style="display:flex; gap:10px; justify-content:end;">
+        <button onclick="editTask(${index})">✏️</button>
+        <button onclick="deleteTask(${index})">&times;</button>
+      </div>
+    `;
+    list.appendChild(li);
+  });
+}
+
 
   function addTask() {
     const input = document.getElementById('taskInput');
@@ -373,6 +442,36 @@
   });
   saveTasks();
   renderTasks();
+}
+function exportTasks() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Add title
+  doc.setFont("Arial", "bold");
+  doc.setFontSize(22);
+  doc.text("Task Manager - Task List", 20, 20);
+
+  // Set the font size for the task list
+  doc.setFont("Arial", "normal");
+  doc.setFontSize(12);
+
+  // Loop through the tasks and add them to the PDF
+  let yPosition = 30; // Start position for the tasks
+  tasks.forEach((task, index) => {
+    const taskText = `${task.text} - Due: ${task.due || "None"} ${task.dueTime || ""} - Priority: ${task.priority}`;
+    doc.text(taskText, 20, yPosition);
+    yPosition += 10; // Move to the next line
+
+    // Add a page if the current page is full
+    if (yPosition > 270) {
+      doc.addPage();
+      yPosition = 20;
+    }
+  });
+
+  // Save the PDF
+  doc.save("task-manager-tasks.pdf");
 }
 
   setInterval(checkDueTasks, 60000); // check every minute
