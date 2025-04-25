@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Task Manager</title>
+  <style>
+    :root {
+      --bg-color: #f2f2f2;
+      --text-color: #000;
+      --card-color: #fff;
+    }
+    body.dark {
+      --bg-color: #121212;
+      --text-color: #fff;
+      --card-color: #1e1e1e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+    .preloader {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: #3498db;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    .preloader span {
+      font-size: 24px;
+      color: #fff;
+      animation: pulse 1s infinite alternate;
+    }
+    @keyframes pulse {
+      from { transform: scale(1); opacity: 1; }
+      to { transform: scale(1.1); opacity: 0.7; }
+    }
+    .container {
+      max-width: 500px;
+      margin: 40px auto;
+      background: var(--card-color);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      display: none;
+    }
+    h1 { text-align: center; }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 20px;
+    }
+    .input-group input, .input-group select {
+      padding: 10px;
+      font-size: 16px;
+      margin-top: 5px;
+    }
+    .input-group button {
+      padding: 10px 15px;
+      font-size: 16px;
+      border: none;
+      background: #3498db;
+      color: #fff;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    .filters, .sort, .theme-toggle, .export {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .filters button, .sort button, .theme-toggle button, .export button {
+      padding: 5px 10px;
+      border: none;
+      background: #ccc;
+      cursor: pointer;
+    }
+    .filters button.active, .sort button.active {
+      background: #3498db;
+      color: white;
+    }
+    ul { list-style: none; padding: 0; }
+    li {
+      display: flex;
+      justify-content: space-between;
+      flex-direction: column;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    li.completed span.task-text {
+      text-decoration: line-through;
+      color: gray;
+    }
+    li .meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    li button {
+      background: none;
+      border: none;
+      color: red;
+      cursor: pointer;
+      align-self: flex-end;
+    }
+    /* Modern dark mode toggle button style */
+    .switch {
+      position: relative;
+      width: 45px;
+      height: 20px;
+      border-radius: 20px;
+      background-color: #ccc;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    .switch .slider {
+      position: absolute;
+      top: 2px;
+      left: 1px;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background-color: white;
+      transition: transform 0.3s ease;
+    }
+    body.dark .switch {
+      background-color: #3498db;
+    }
+    body.dark .switch .slider {
+      transform: translateX(25px);
+    }
+    @media(max-width: 600px) {
+      .input-group input, .input-group button, .input-group select {
+        width: 100%;
+        margin-top: 5px;
+      }
+    }
+    footer {
+    background-color: var(--bg-color);
+    text-align: center;
+    padding: 10px;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    font-size: 14px;
+    color: var(--text-color);
+  }
+  </style>
+</head>
+<body>
+  <div class="preloader" id="preloader"><span>Loading Task Manager...(Akinirinade Mayowa Assignment)</span></div>
+  <div class="container" id="app">
+    <h1>Task Manager</h1>
+    <div class="theme-toggle" onclick="toggleDarkMode()">
+      <div class="switch">
+        <div class="slider"></div>
+      </div>
+    </div>
+    <div class="input-group">
+      <input type="text" id="taskInput" placeholder="Enter a new task...">
+      <input type="date" id="dueDate">
+      <input type="time" id="dueTime">
+      <select id="priority">
+        <option value="low">Low Priority</option>
+        <option value="medium">Medium Priority</option>
+        <option value="high">High Priority</option>
+      </select>
+      <select id="recurring">
+        <option value="none">One-time</option>
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+      </select>
+      <button onclick="addTask()">Add</button>
+      <button onclick="startVoiceInput()">🎤 Speak opt</button>
+    </div>
+    <div class="filters">
+      <button onclick="setFilter('all')" class="active">All</button>
+      <button onclick="setFilter('completed')">Completed</button>
+      <button onclick="setFilter('pending')">Pending</button>
+    </div>
+    <div class="sort">
+      <button onclick="sortByNewest()" class="active">Sort by Newest</button>
+    </div>
+    <div class="export">
+      <button onclick="exportTasks()">Export Tasks</button>
+    </div>
+    <ul id="taskList"></ul>
+  </div>
+  <footer>
+    <p id="copyright-text"></p>
+  </footer>
+  <script>
+    function toggleDarkMode() {
+    document.body.classList.toggle('dark');
+    localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+  }
+
+  // On page load
+  window.addEventListener('DOMContentLoaded', () => {
+    if (localStorage.getItem('theme') === 'dark') {
+      document.body.classList.add('dark');
+    }
+    document.getElementById('preloader').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderTasks();
+  });
+  const year = new Date().getFullYear();
+  const copyrightText = `© ${year} Akinirinade Mayowa Assignment(@MarkTech). All rights reserved.`;
+  document.getElementById("copyright-text").textContent = copyrightText;
+
+  function startVoiceInput() {
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'en-US'; // Set language for recognition
+  recognition.interimResults = false; // Get final result
+  recognition.maxAlternatives = 1; // Max results to return
+
+  recognition.start(); // Start the recognition process
+
+  recognition.onresult = function(event) {
+    const spokenText = event.results[0][0].transcript; // Get the spoken text
+    document.getElementById('taskInput').value = spokenText; // Set the text in the input field
+  };
+
+  recognition.onerror = function(event) {
+    console.error('Speech recognition error', event.error);
+  };
+
+  recognition.onend = function() {
+    console.log('Speech recognition ended');
+  };
+}
+
+  let tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+  let filter = 'all';
+
+  function saveTasks() {
+    localStorage.setItem('tasks', JSON.stringify(tasks));
+  }
+
+  function renderTasks() {
+    const list = document.getElementById('taskList');
+    list.innerHTML = '';
+    const filtered = tasks.filter(task => {
+      if (filter === 'completed') return task.completed;
+      if (filter === 'pending') return !task.completed;
+      return true;
+    });
+
+    filtered.forEach((task, index) => {
+      const li = document.createElement('li');
+      li.className = task.completed ? 'completed' : '';
+      li.innerHTML = `
+        <span class="task-text" onclick="toggleTask(${index})">${task.text}</span>
+        <div class="meta">
+          <span>Due: ${task.due || 'None'} ${task.dueTime || ''}</span>
+          <span>Priority: ${task.priority}</span>
+          <span>${task.recurring !== 'none' ? 'Repeats: ' + task.recurring : ''}</span>
+        </div>
+        <div style="display:flex; gap:10px; justify-content:end;">
+          <button onclick="editTask(${index})">✏️</button>
+          <button onclick="deleteTask(${index})">&times;</button>
+        </div>
+      `;
+      list.appendChild(li);
+    });
+  }
+
+  function addTask() {
+    const input = document.getElementById('taskInput');
+    const due = document.getElementById('dueDate').value;
+    const priority = document.getElementById('priority').value;
+    const recurring = document.getElementById('recurring').value;
+    const dueTime = document.getElementById('dueTime').value;
+    if (input.value.trim()) {
+      const task = { text: input.value.trim(), completed: false, due, dueTime, priority, recurring };
+      tasks.unshift(task);
+      saveTasks();
+      renderTasks();
+      input.value = '';
+      document.getElementById('dueDate').value = '';
+      document.getElementById('dueTime').value = '';
+      document.getElementById('priority').value = '';
+      document.getElementById('recurring').value = '';
+    }
+  }
+
+  function editTask(index) {
+    const task = tasks[index];
+    const form = document.createElement('div');
+    form.innerHTML = `
+      <div style="display:flex; flex-direction:column; gap:5px; margin-top:10px;">
+        <input id="editText" value="${task.text}" placeholder="Task Text"/>
+        <input type="date" id="editDate" value="${task.due}"/>
+        <input type="time" id="editTime" value="${task.dueTime}"/>
+        <select id="editPriority">
+          <option value="low" ${task.priority === 'low' ? 'selected' : ''}>Low</option>
+          <option value="medium" ${task.priority === 'medium' ? 'selected' : ''}>Medium</option>
+          <option value="high" ${task.priority === 'high' ? 'selected' : ''}>High</option>
+        </select>
+        <select id="editRecurring">
+          <option value="none" ${task.recurring === 'none' ? 'selected' : ''}>One-time</option>
+          <option value="daily" ${task.recurring === 'daily' ? 'selected' : ''}>Daily</option>
+          <option value="weekly" ${task.recurring === 'weekly' ? 'selected' : ''}>Weekly</option>
+        </select>
+        <button onclick="saveEdit(${index})">Save</button>
+      </div>
+    `;
+    document.getElementById('taskList').children[index].appendChild(form);
+  }
+
+  function saveEdit(index) {
+    const task = tasks[index];
+    task.text = document.getElementById('editText').value;
+    task.due = document.getElementById('editDate').value;
+    task.dueTime = document.getElementById('editTime').value;
+    task.priority = document.getElementById('editPriority').value;
+    task.recurring = document.getElementById('editRecurring').value;
+    saveTasks();
+    renderTasks();
+  }
+
+  function deleteTask(index) {
+    tasks[index].completed = true;
+    tasks.splice(index, 1);  //
+    saveTasks();
+    renderTasks();
+  }
+  
+
+  function toggleTask(index) {
+    tasks[index].completed = !tasks[index].completed;
+    if (tasks[index].completed && tasks[index].recurring !== 'none') {
+      const nextDue = new Date(tasks[index].due);
+      if (tasks[index].recurring === 'daily') nextDue.setDate(nextDue.getDate() + 1);
+      if (tasks[index].recurring === 'weekly') nextDue.setDate(nextDue.getDate() + 7);
+      tasks.push({ ...tasks[index], completed: false, due: nextDue.toISOString().split('T')[0] });
+    }
+    saveTasks();
+    renderTasks();
+  }
+
+  function checkDueTasks() {
+  const now = new Date();
+  tasks.forEach((task, i) => {
+    if (!task.completed && task.due && task.dueTime) {
+      const dueDateTime = new Date(`${task.due}T${task.dueTime}`);
+      // Adjust for time zone issues, if needed (example: use 'UTC' for global comparison)
+      if (now >= dueDateTime) {
+        alert(`Reminder: "${task.text}" is due now!`);
+        tasks[i].completed = true;
+        // Handle recurrence
+        if (task.recurring !== 'none') {
+          let nextDue = new Date(dueDateTime);
+          if (task.recurring === 'daily') {
+            nextDue.setDate(nextDue.getDate() + 1);
+          } else if (task.recurring === 'weekly') {
+            nextDue.setDate(nextDue.getDate() + 7);
+          }
+          tasks.push({ ...task, completed: false, due: nextDue.toISOString().split('T')[0], dueTime: nextDue.toISOString().split('T')[1].split('.')[0] });
+        }
+      }
+    }
+  });
+  saveTasks();
+  renderTasks();
+}
+
+  setInterval(checkDueTasks, 60000); // check every minute
+  renderTasks();
+  window.addEventListener('load', () => {
+    document.getElementById('preloader').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    renderTasks(); // Call this after showing the main container
+  });
+</script>
+</body>
+</html>
